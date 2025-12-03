@@ -3,7 +3,6 @@
 API Routes Package
 """
 
-from . import rtmpose_routes
 from . import yolo_test1_routes
 from . import yolo_test2_routes
 

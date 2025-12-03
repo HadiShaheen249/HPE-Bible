@@ -12,18 +12,17 @@ from pydantic_settings import BaseSettings
 ROOT_DIR = Path(__file__).parent.absolute()
 
 # Project Directories
-RTMPOSE_DIR = ROOT_DIR / "RTMPose"
+
 YOLO_TEST1_DIR = ROOT_DIR / "yolo_test1"
 YOLO_TEST2_DIR = ROOT_DIR / "yolo_test2"
 
 # Model Directories
-RTMPOSE_MODELS = RTMPOSE_DIR / "models"
+
 YOLO_TEST1_MODELS = YOLO_TEST1_DIR / "models"
 YOLO_TEST2_MODELS = YOLO_TEST2_DIR / "models"
 
 # Input/Output Directories
-RTMPOSE_INPUT = RTMPOSE_DIR / "input"
-RTMPOSE_OUTPUT = RTMPOSE_DIR / "output"
+
 
 YOLO_TEST1_INPUT = YOLO_TEST1_DIR / "input"
 YOLO_TEST1_OUTPUT = YOLO_TEST1_DIR / "output"
@@ -66,9 +65,7 @@ class Settings(BaseSettings):
     CONFIDENCE_THRESHOLD: float = 0.5
     IOU_THRESHOLD: float = 0.45
     
-    # RTMPose Settings
-    RTMPOSE_ENABLED: bool = True
-    RTMPOSE_MODEL_PATH: Optional[str] = None
+
     
     # YOLO Test1 Settings
     YOLO_TEST1_ENABLED: bool = True
@@ -102,11 +99,7 @@ def ensure_directories():
     Ensure all required directories exist
     """
     directories = [
-        # RTMPose
-        RTMPOSE_DIR,
-        RTMPOSE_MODELS,
-        RTMPOSE_INPUT,
-        RTMPOSE_OUTPUT,
+
         
         # YOLO Test1
         YOLO_TEST1_DIR,
@@ -139,7 +132,7 @@ def get_model_path(project: str, model_name: str) -> Path:
         Full path to model file
     """
     project_models = {
-        "rtmpose": RTMPOSE_MODELS,
+        
         "yolo_test1": YOLO_TEST1_MODELS,
         "yolo_test2": YOLO_TEST2_MODELS,
     }
@@ -164,9 +157,8 @@ def check_models():
     print("=" * 60)
     
     models_to_check = {
-        "RTMPose": [
-            (RTMPOSE_MODELS, "rtmpose model files"),
-        ],
+        
+       
         "YOLO Test1": [
             (YOLO_TEST1_MODELS / "yolov8n-pose.pt", "YOLOv8n-pose"),
             (YOLO_TEST1_MODELS / "yolov8x-pose.pt", "YOLOv8x-pose"),
@@ -214,7 +206,7 @@ def print_config():
     print(f"Confidence Threshold: {settings.CONFIDENCE_THRESHOLD}")
     print(f"Max Upload Size: {settings.MAX_UPLOAD_SIZE / (1024*1024):.0f} MB")
     print("-" * 60)
-    print(f"RTMPose: {'✅ Enabled' if settings.RTMPOSE_ENABLED else '❌ Disabled'}")
+   
     print(f"YOLO Test1: {'✅ Enabled' if settings.YOLO_TEST1_ENABLED else '❌ Disabled'}")
     print(f"YOLO Test2: {'✅ Enabled' if settings.YOLO_TEST2_ENABLED else '❌ Disabled'}")
     print("=" * 60 + "\n")
