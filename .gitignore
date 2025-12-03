@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+_pycache_/
+
+# Virtual Environment
+venv/
+env/
+*.exe
+
+# Models - ملفات كبيرة جدا
+*.pt
+*.pth
+*.onnx
+*.weights
+
+# Output & Logs
+output/
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Input files (optional)
+input/*.jpg
+input/*.png
+input/*.mp4

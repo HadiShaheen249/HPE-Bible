@@ -1,0 +1,43 @@
+# ==================== Requirements for Python 3.11.9 ====================
+# Tested and verified for full compatibility
+# Install order: PyTorch first, then these requirements
+
+# Core Dependencies
+numpy==1.26.4
+opencv-python==4.9.0.80
+opencv-contrib-python==4.9.0.80
+Pillow==10.2.0
+
+# Deep Learning & Computer Vision
+# NOTE: Install torch separately first (see instructions below)
+# torch>=2.1.0  # Will be installed separately
+# torchvision>=0.16.0  # Will be installed separately
+ultralytics==8.1.20
+mediapipe==0.10.11
+
+# Data Processing
+pandas==2.2.1
+scipy==1.12.0
+
+# Visualization
+matplotlib==3.8.3
+seaborn==0.13.2
+
+# Progress Bar
+tqdm==4.66.2
+
+# Video Processing
+imageio==2.34.0
+imageio-ffmpeg==0.4.9
+
+# File I/O
+PyYAML==6.0.1
+
+# Utilities
+requests==2.31.0
+certifi>=2023.7.22
+
+# Optional (for Jupyter notebooks)
+# jupyter==1.0.0
+# notebook==7.1.0
+# ipywidgets==8.1.2
