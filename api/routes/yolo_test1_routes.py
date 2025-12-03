@@ -25,11 +25,11 @@ def initialize_model():
     """Initialize YOLO Test1 model"""
     global pose_estimator, config
     try:
-        from yolo_test1.pose_estimator import PoseEstimator
+        from yolo_test1.pose_estimator import YOLOv8PoseEstimator
         from config import Config
         
         config = Config()
-        pose_estimator = PoseEstimator(config)
+        pose_estimator = YOLOv8PoseEstimator(config)
         return True
     except Exception as e:
         print(f"❌ Error loading YOLO Test1: {e}")
