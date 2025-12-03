@@ -1,7 +1,6 @@
 # 🎯 HPE Bible - Human Pose Estimation API
 
 Unified FastAPI for three pose estimation projects:
-- **RTMPose**: Real-time multi-person pose estimation
 - **YOLO Test 1**: YOLO-based pose detection  
 - **YOLO Test 2**: Advanced YOLO detection with multi-model support
 

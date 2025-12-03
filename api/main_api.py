@@ -18,7 +18,7 @@ sys.path.insert(0, str(BASE_DIR / "yolo_test1"))
 sys.path.insert(0, str(BASE_DIR / "yolo_test2"))
 
 # Import routes
-from api.routes import rtmpose_routes, yolo_test1_routes, yolo_test2_routes
+from api.routes import  yolo_test1_routes, yolo_test2_routes
 
 # Create FastAPI app
 app = FastAPI(
@@ -39,11 +39,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(
-    rtmpose_routes.router, 
-    prefix="/api/rtmpose", 
-    tags=["RTMPose"]
-)
+
 app.include_router(
     yolo_test1_routes.router, 
     prefix="/api/yolo-test1", 
@@ -97,11 +93,7 @@ async def root():
             <p>Welcome to the Human Pose Estimation API</p>
             
             <h2>📚 Available Projects:</h2>
-            <div class="endpoint">
-                <strong>RTMPose</strong> - Real-time pose estimation
-                <br><a href="/api/rtmpose/info">Info</a> | 
-                <a href="/docs#/RTMPose">Endpoints</a>
-            </div>
+            
             
             <div class="endpoint">
                 <strong>YOLO Test 1</strong> - YOLO pose detection
@@ -138,7 +130,7 @@ async def health_check():
         "status": "healthy",
         "version": "1.0.0",
         "projects": {
-            "rtmpose": "available",
+            
             "yolo_test1": "available",
             "yolo_test2": "available"
         }
@@ -154,7 +146,7 @@ async def api_info():
         "version": "1.0.0",
         "description": "Unified API for pose estimation",
         "endpoints": {
-            "rtmpose": "/api/rtmpose",
+           
             "yolo_test1": "/api/yolo-test1",
             "yolo_test2": "/api/yolo-test2"
         },

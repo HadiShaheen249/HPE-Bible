@@ -1,82 +1,76 @@
 """
 YOLO Test 2 API Routes
-Advanced YOLO detection with video support
+Advanced YOLO detection
 """
 
-from fastapi import APIRouter, File, UploadFile, HTTPException, Form
+from fastapi import APIRouter, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 import cv2
+import numpy as np
 from pathlib import Path
 import shutil
 import sys
 from datetime import datetime
-import importlib.util
 
-# Add yolo_test2 to path
+# Setup paths
 BASE_DIR = Path(__file__).parent.parent.parent
 YOLO_TEST2_DIR = BASE_DIR / "yolo_test2"
 
-if str(YOLO_TEST2_DIR) not in sys.path:
-    sys.path.insert(0, str(YOLO_TEST2_DIR))
+# Add to Python path
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
+# Create router
 router = APIRouter()
 
 # Global variables
 detector = None
-config = None
-Detector = None
-Config = None
-
-def load_modules():
-    """Dynamically load detector and config modules"""
-    global Detector, Config
-    
-    try:
-        # Load detector.py
-        detector_spec = importlib.util.spec_from_file_location(
-            "detector", 
-            YOLO_TEST2_DIR / "detector.py"
-        )
-        detector_module = importlib.util.module_from_spec(detector_spec)
-        detector_spec.loader.exec_module(detector_module)
-        Detector = detector_module.Detector
-        
-        # Load config.py
-        config_spec = importlib.util.spec_from_file_location(
-            "config_yolo2", 
-            YOLO_TEST2_DIR / "config.py"
-        )
-        config_module = importlib.util.module_from_spec(config_spec)
-        config_spec.loader.exec_module(config_module)
-        Config = config_module.Config
-        
-        print("✅ YOLO Test2 modules loaded successfully")
-        return True
-    except Exception as e:
-        print(f"❌ Error loading modules: {e}")
-        return False
 
 def initialize_model():
     """Initialize YOLO Test2 model"""
-    global detector, config
+    global detector
     
     try:
-        # Load modules first
-        if not load_modules():
+        print(f"📁 Loading YOLO Test2 from: {YOLO_TEST2_DIR}")
+        
+        # Check if detector.py exists
+        detector_file = YOLO_TEST2_DIR / "detector.py"
+        if not detector_file.exists():
+            print(f"❌ detector.py not found at {detector_file}")
             return False
         
-        # Initialize model
-        config = Config()
-        detector = Detector(config)
+        # Import using full path
+        import yolo_test2.detector as detector_module
+        
+        # Try to load config if exists
+        config_file = YOLO_TEST2_DIR / "config.py"
+        if config_file.exists():
+            import yolo_test2.config as config_module
+            config = config_module.Config()
+            detector = detector_module.Detector(config)
+        else:
+            # Try without config
+            print("⚠️  config.py not found, trying without config...")
+            detector = detector_module.Detector()
+        
         print("✅ YOLO Test2 model loaded successfully")
         return True
         
+    except ImportError as e:
+        print(f"❌ Import Error: {e}")
+        print(f"   Make sure yolo_test2/detector.py exists")
+        import traceback
+        traceback.print_exc()
+        return False
+        
     except Exception as e:
-        print(f"❌ Error initializing YOLO Test2: {e}")
-        print(f"📁 Looking in: {YOLO_TEST2_DIR}")
+        print(f"❌ Error loading YOLO Test2: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
-# Initialize
+# Try to initialize on module load
+print(f"🔄 Initializing YOLO Test2...")
 initialize_model()
 
 @router.post("/detect")
@@ -86,17 +80,19 @@ async def detect_objects(file: UploadFile = File(...)):
     
     - **file**: Image file
     """
+    global detector
+    
     if detector is None:
         if not initialize_model():
             raise HTTPException(
-                status_code=500,
-                detail="YOLO Test2 model not loaded. Check if detector.py exists."
+                status_code=503,
+                detail="YOLO Test2 detector not loaded. Check server logs."
             )
     
     try:
-        # Directories
-        input_dir = Path("yolo_test2/input")
-        output_dir = Path("yolo_test2/output")
+        # Create directories
+        input_dir = YOLO_TEST2_DIR / "input"
+        output_dir = YOLO_TEST2_DIR / "output"
         input_dir.mkdir(parents=True, exist_ok=True)
         output_dir.mkdir(parents=True, exist_ok=True)
         
@@ -106,78 +102,86 @@ async def detect_objects(file: UploadFile = File(...)):
         input_path = input_dir / filename
         
         with open(input_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            content = await file.read()
+            buffer.write(content)
         
-        # Detect
+        print(f"📥 Processing: {filename}")
+        
+        # Read image
         img = cv2.imread(str(input_path))
         if img is None:
             raise HTTPException(status_code=400, detail="Invalid image")
         
-        result_img, detections = detector.detect(img)
+        # Detect
+        result = detector.detect(img)
+        
+        # Handle result
+        if isinstance(result, tuple):
+            result_img, detections = result[0], result[1]
+        else:
+            result_img = img
+            detections = result
         
         # Save
         output_filename = f"result_{filename}"
         output_path = output_dir / output_filename
-        cv2.imwrite(str(output_path), result_img)
+        
+        if result_img is not None and isinstance(result_img, np.ndarray):
+            cv2.imwrite(str(output_path), result_img)
+            print(f"✅ Saved result: {output_filename}")
+        else:
+            cv2.imwrite(str(output_path), img)
+            print(f"⚠️  Saved original image")
         
         return JSONResponse(content={
             "success": True,
             "message": "Detection completed",
-            "detections": detections if detections else [],
-            "num_detections": len(detections) if detections else 0,
+            "detections": str(detections) if detections else [],
             "output_file": str(output_path),
             "download_url": f"/api/yolo-test2/result/{output_filename}"
         })
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    
-    finally:
-        await file.close()
-
-@router.post("/process-video")
-async def process_video(file: UploadFile = File(...)):
-    """
-    Process video with YOLO Test2
-    
-    - **file**: Video file (mp4, avi)
-    """
-    raise HTTPException(
-        status_code=501,
-        detail="Video processing not implemented yet. Coming soon!"
-    )
+        import traceback
+        error_msg = f"Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        print(f"❌ {error_msg}")
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @router.get("/result/{filename}")
 async def get_result(filename: str):
     """Download result image"""
-    file_path = Path("yolo_test2/output") / filename
+    file_path = YOLO_TEST2_DIR / "output" / filename
     
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     
-    return FileResponse(file_path, media_type="image/jpeg", filename=filename)
+    return FileResponse(
+        path=str(file_path),
+        media_type="image/jpeg",
+        filename=filename
+    )
 
 @router.get("/info")
 async def get_info():
     """Get YOLO Test2 info"""
-    detector_exists = (YOLO_TEST2_DIR / "detector.py").exists()
+    detector_file = YOLO_TEST2_DIR / "detector.py"
+    config_file = YOLO_TEST2_DIR / "config.py"
     
     return {
         "project": "YOLO Test 2",
-        "description": "Advanced YOLO object detection and pose estimation",
-        "models": [
-            "yolov8m.pt",
-            "yolov8m-pose.pt",
-            "yolov8x.pt",
-            "yolov8x-pose.pt"
-        ],
+        "description": "Advanced YOLO object detection",
         "status": "active" if detector else "inactive",
-        "detector_file_exists": detector_exists,
-        "detector_path": str(YOLO_TEST2_DIR / "detector.py"),
-        "features": ["Object Detection", "Pose Estimation", "Video Processing"],
+        "detector_loaded": detector is not None,
+        "paths": {
+            "project_dir": str(YOLO_TEST2_DIR),
+            "detector_file": str(detector_file),
+            "detector_exists": detector_file.exists(),
+            "config_file": str(config_file),
+            "config_exists": config_file.exists()
+        },
+        "models": ["yolov8m.pt", "yolov8m-pose.pt"],
         "endpoints": {
             "detect": "/api/yolo-test2/detect",
-            "process_video": "/api/yolo-test2/process-video",
             "result": "/api/yolo-test2/result/{filename}",
             "info": "/api/yolo-test2/info"
         }
