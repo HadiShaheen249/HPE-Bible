@@ -1,0 +1,33 @@
+# Core (numpy first!)
+numpy==1.24.3
+
+# PyTorch
+torch==2.1.0
+torchvision==0.16.0
+torchaudio==2.1.0
+
+# Computer Vision
+opencv-python==4.8.1.78
+pillow==10.1.0
+scipy==1.11.4
+
+# Visualization
+matplotlib==3.8.2
+pandas==2.1.4
+seaborn==0.13.0
+
+# Utilities
+tqdm==4.66.1
+pyyaml==6.0.1
+psutil==5.9.6
+colorama==0.4.6
+
+# OpenMMLab
+openmim==0.3.9
+mmengine==0.10.2
+mmcv==2.1.0
+mmdet==3.3.0
+xtcocotools==1.14.3
+
+# Optional: Uncomment if lap installs successfully
+# lap==0.4.0
