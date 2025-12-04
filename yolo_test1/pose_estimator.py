@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Union, Optional, List, Tuple
 import time
 import os
-from config import Config
+from yolo_test1.config import Config
 
 
 class YOLOv8PoseEstimator:
