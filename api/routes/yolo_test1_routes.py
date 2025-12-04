@@ -1,195 +1,233 @@
 """
-YOLO Test 1 API Routes
-Endpoints for YOLO-based pose detection
+YOLO Test 1 API Routes - Uses Original YOLOv8PoseEstimator
 """
 
-from fastapi import APIRouter, File, UploadFile, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import APIRouter, File, UploadFile, HTTPException, Form
+from fastapi.responses import FileResponse
 import cv2
 import numpy as np
 from pathlib import Path
-import shutil
-import sys
 from datetime import datetime
+import sys
+import os
 
-# Setup paths
+# Add yolo_test1 to path
 BASE_DIR = Path(__file__).parent.parent.parent
 YOLO_TEST1_DIR = BASE_DIR / "yolo_test1"
 
-# Add to Python path
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
+if str(YOLO_TEST1_DIR) not in sys.path:
+    sys.path.insert(0, str(YOLO_TEST1_DIR))
 
-# Create router
+# Change to yolo_test1 directory for imports
+original_cwd = os.getcwd()
+os.chdir(YOLO_TEST1_DIR)
+
+try:
+    from yolo_test1.pose_estimator import YOLOv8PoseEstimator
+    from yolo_test1.config import Config
+finally:
+    os.chdir(original_cwd)
+
 router = APIRouter()
+pose_estimators = {}  # Cache for different model sizes
 
-# Global variable for model
-pose_estimator = None
-
-def initialize_model():
-    """Initialize YOLO Test1 model"""
-    global pose_estimator
+def get_estimator(model_size='m'):
+    """Get or create pose estimator of specified size"""
+    global pose_estimators
     
-    try:
-        print(f"📁 Loading YOLO Test1 from: {YOLO_TEST1_DIR}")
-        
-        # Import using full path (better approach)
-        import yolo_test1.pose_estimator as pe_module
-        
-        # Create instance with correct parameters
-        pose_estimator = pe_module.PoseEstimator(
-            model_name="yolov8n-pose.pt",
-            conf_threshold=0.5
-        )
-        
-        print("✅ YOLO Test1 model loaded successfully")
-        return True
-        
-    except ImportError as e:
-        print(f"❌ Import Error: {e}")
-        print(f"   Make sure yolo_test1/pose_estimator.py exists")
-        import traceback
-        traceback.print_exc()
-        return False
-        
-    except Exception as e:
-        print(f"❌ Error loading YOLO Test1: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-# Try to initialize on module load
-print(f"🔄 Initializing YOLO Test1...")
-initialize_model()
+    if model_size not in pose_estimators:
+        try:
+            model_name = f"yolov8{model_size}-pose.pt"
+            print(f"🔄 Initializing YOLO Test1 with {model_name}")
+            
+            estimator = YOLOv8PoseEstimator(
+                model_name=model_name,
+                conf_threshold=0.5
+            )
+            
+            pose_estimators[model_size] = estimator
+            print(f"✅ YOLO Test1 ({model_size}) initialized successfully")
+            return estimator
+            
+        except Exception as e:
+            print(f"❌ Error initializing model {model_size}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    return pose_estimators[model_size]
 
 @router.post("/predict")
-async def predict_yolo1(file: UploadFile = File(...)):
+async def predict_yolo1(
+    file: UploadFile = File(...),
+    model_size: str = Form('m')
+):
     """
-    YOLO Test1 pose prediction
-    
-    - **file**: Image file (jpg, png)
+    Pose estimation using original YOLOv8PoseEstimator
+    model_size: n, s, m, l, x
     """
-    global pose_estimator
-    
-    if pose_estimator is None:
-        if not initialize_model():
-            raise HTTPException(
-                status_code=503,
-                detail="YOLO Test1 model not loaded. Check server logs."
-            )
+    estimator = get_estimator(model_size)
+    if estimator is None:
+        raise HTTPException(
+            status_code=503, 
+            detail=f"Failed to load model size '{model_size}'"
+        )
     
     try:
-        # Create directories
         input_dir = YOLO_TEST1_DIR / "input"
         output_dir = YOLO_TEST1_DIR / "output"
         input_dir.mkdir(parents=True, exist_ok=True)
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save uploaded file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{timestamp}_{file.filename}"
         input_path = input_dir / filename
         
+        # Save uploaded file
         with open(input_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
+            buffer.write(await file.read())
         
-        print(f"📥 Processing: {filename}")
+        file_ext = input_path.suffix.lower()
+        is_video = file_ext in ['.mp4', '.avi', '.mov', '.mkv']
         
-        # Read image
-        img = cv2.imread(str(input_path))
-        if img is None:
-            raise HTTPException(status_code=400, detail="Invalid image file")
-        
-        # Process with pose estimator
-        result = pose_estimator.estimate(img)
-        
-        # Handle different return types
-        if isinstance(result, tuple):
-            if len(result) >= 2:
-                result_img, data = result[0], result[1]
-            else:
-                result_img = result[0]
-                data = None
+        if is_video:
+            # Process video using original method
+            print(f"🎬 Processing video with YOLO Test1 ({model_size})...")
+            
+            output_filename = f"result_{timestamp}.mp4"
+            output_path = output_dir / "videos" / output_filename
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Use original predict_video method
+            estimator.predict_video(
+                video_path=str(input_path),
+                save_result=True,
+                output_path=str(output_path),
+                show_live=False  # Don't show window in API
+            )
+            
+            # Count frames (approximate)
+            cap = cv2.VideoCapture(str(input_path))
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.release()
+            
+            return {
+                "success": True,
+                "message": "Video processing completed",
+                "type": "video",
+                "model_size": model_size,
+                "frames_processed": frame_count,
+                "download_url": f"/api/yolo-test1/result/videos/{output_filename}"
+            }
         else:
-            result_img = img
-            data = result
-        
-        # Save result image
-        output_filename = f"result_{filename}"
-        output_path = output_dir / output_filename
-        
-        if result_img is not None and isinstance(result_img, np.ndarray):
-            cv2.imwrite(str(output_path), result_img)
-            print(f"✅ Saved result: {output_filename}")
-        else:
-            cv2.imwrite(str(output_path), img)
-            print(f"⚠️  Saved original image (no result image)")
-        
-        return JSONResponse(content={
-            "success": True,
-            "message": "YOLO Test1 prediction completed",
-            "input_file": str(input_path),
-            "output_file": str(output_path),
-            "data": str(data) if data is not None else "No data",
-            "download_url": f"/api/yolo-test1/result/{output_filename}"
-        })
+            # Process image using original method
+            print(f"📸 Processing image with YOLO Test1 ({model_size})...")
+            
+            output_filename = f"result_{filename}"
+            output_path = output_dir / "images" / output_filename
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Use original predict_image method
+            result_frame = estimator.predict_image(
+                image_path=str(input_path),
+                save_result=True,
+                output_path=str(output_path)
+            )
+            
+            # ✅ Count persons with detected poses - FIX
+            img = cv2.imread(str(input_path))
+            results = estimator.model(img, verbose=False)
+            
+            num_persons = 0
+            total_keypoints = 0
+            
+            if results and len(results) > 0:
+                result = results[0]
+                
+                # Check if keypoints exist
+                if hasattr(result, 'keypoints') and result.keypoints is not None:
+                    # Get keypoints data
+                    keypoints_data = result.keypoints.data
+                    
+                    if keypoints_data is not None and len(keypoints_data.shape) > 0:
+                        # Number of persons detected
+                        num_persons = keypoints_data.shape[0] if len(keypoints_data.shape) > 1 else 0
+                        
+                        print(f"   🔍 Keypoints shape: {keypoints_data.shape}")
+                        
+                        # Count visible keypoints (confidence > 0.5)
+                        if num_persons > 0:
+                            for person_idx in range(num_persons):
+                                person_kpts = keypoints_data[person_idx]
+                                if len(person_kpts.shape) > 1:
+                                    # confidence is in column 2
+                                    visible = (person_kpts[:, 2] > 0.5).sum().item()
+                                    total_keypoints += visible
+            
+            print(f"   ✅ Detected {num_persons} persons with {total_keypoints} total visible keypoints")
+            
+            return {
+                "success": True,
+                "message": "Pose estimation completed",
+                "type": "image",
+                "model_size": model_size,
+                "num_persons": num_persons,  # ✅ العدد الصحيح
+                "total_visible_keypoints": total_keypoints,
+                "tile_grid": list(Config.TILE_GRID),
+                "download_url": f"/api/yolo-test1/result/images/{output_filename}"
+            }
     
     except Exception as e:
         import traceback
-        error_msg = f"Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-        print(f"❌ {error_msg}")
-        raise HTTPException(status_code=500, detail=error_msg)
+        error_detail = f"Error: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=error_detail)
 
-@router.get("/result/{filename}")
-async def get_result(filename: str):
-    """Download result image"""
-    file_path = YOLO_TEST1_DIR / "output" / filename
+@router.get("/result/{folder}/{filename}")
+async def get_result(folder: str, filename: str):
+    """Download result (images or videos)"""
+    if folder not in ['images', 'videos']:
+        raise HTTPException(status_code=400, detail="Invalid folder")
+    
+    file_path = YOLO_TEST1_DIR / "output" / folder / filename
     
     if not file_path.exists():
-        raise HTTPException(
-            status_code=404, 
-            detail=f"File not found: {filename}"
-        )
+        raise HTTPException(status_code=404, detail="File not found")
     
-    return FileResponse(
-        path=str(file_path),
-        media_type="image/jpeg",
-        filename=filename
-    )
+    ext = file_path.suffix.lower()
+    media_type = "video/mp4" if ext in ['.mp4', '.avi'] else "image/jpeg"
+    
+    return FileResponse(str(file_path), media_type=media_type, filename=filename)
 
 @router.get("/info")
 async def get_info():
-    """Get YOLO Test1 info"""
-    model_path = YOLO_TEST1_DIR / "models" / "yolov8n-pose.pt"
-    pose_estimator_file = YOLO_TEST1_DIR / "pose_estimator.py"
-    
+    """Model info"""
     return {
         "project": "YOLO Test 1",
-        "description": "YOLO-based pose estimation",
-        "status": "active" if pose_estimator is not None else "inactive",
-        "model_loaded": pose_estimator is not None,
-        "paths": {
-            "project_dir": str(YOLO_TEST1_DIR),
-            "model_path": str(model_path),
-            "model_exists": model_path.exists(),
-            "pose_estimator_file": str(pose_estimator_file),
-            "pose_estimator_exists": pose_estimator_file.exists()
-        },
-        "models": ["yolov8n-pose.pt", "yolov8x-pose.pt"],
-        "endpoints": {
-            "predict": "/api/yolo-test1/predict",
-            "result": "/api/yolo-test1/result/{filename}",
-            "info": "/api/yolo-test1/info",
-            "reload": "/api/yolo-test1/reload"
-        }
+        "description": "Original YOLOv8PoseEstimator with tiling support",
+        "status": "active",
+        "available_sizes": ["n", "s", "m", "l", "x"],
+        "loaded_models": list(pose_estimators.keys()),
+        "features": [
+            "Pose estimation",
+            "Keypoint detection",
+            "Image tiling for far-view scenes",
+            "Video processing"
+        ],
+        "tile_grid": list(Config.TILE_GRID),
+        "supports": ["images", "videos"]
     }
 
 @router.post("/reload")
-async def reload_model():
-    """Reload the model"""
-    success = initialize_model()
+async def reload_model(model_size: str = Form('m')):
+    """Reload specific model"""
+    global pose_estimators
+    
+    if model_size in pose_estimators:
+        del pose_estimators[model_size]
+    
+    estimator = get_estimator(model_size)
+    
     return {
-        "success": success,
-        "message": "Model reloaded successfully" if success else "Failed to reload model"
+        "success": estimator is not None,
+        "message": f"Model {model_size} reloaded" if estimator else "Failed to reload"
     }

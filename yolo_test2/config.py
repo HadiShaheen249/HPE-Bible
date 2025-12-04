@@ -52,7 +52,6 @@ def select_model():
             'size': '~136 MB',
             'best_for': 'Professional GPU, research'
         }
-
     }
     
     for key, info in models_info.items():
@@ -83,8 +82,14 @@ def select_model():
     return choice
 
 
-# Get user's model selection
-SELECTED_MODEL = select_model()
+# ==================== AUTO-SELECT FOR API MODE ====================
+# Check if running in API mode (don't show interactive prompt)
+if os.environ.get('YOLO_TEST2_AUTO_SELECT') == 'true':
+    SELECTED_MODEL = 'm'  # Default for API
+    print("✅ Auto-selected: YOLOv8m (API mode)")
+else:
+    # Get user's model selection (interactive)
+    SELECTED_MODEL = select_model()
 
 # ==================== PROJECT PATHS ====================
 # Base directory
@@ -294,3 +299,63 @@ def print_config_summary():
 # Print configuration when module is loaded
 if __name__ != "__main__":
     print_config_summary()
+
+
+# ==================== CONFIG CLASS FOR IMPORTS ====================
+class Config:
+    """
+    Config class to make all configurations accessible as class attributes
+    This allows imports like: from config import Config
+    """
+    
+    # Model Selection
+    SELECTED_MODEL = SELECTED_MODEL
+    
+    # Paths
+    BASE_DIR = BASE_DIR
+    INPUT_DIR = INPUT_DIR
+    OUTPUT_DIR = OUTPUT_DIR
+    MODELS_DIR = MODELS_DIR
+    LOGS_DIR = LOGS_DIR
+    
+    # Detection Config
+    DETECTION_CONFIG = DETECTION_CONFIG
+    POSE_CONFIG = POSE_CONFIG
+    MEDIAPIPE_CONFIG = MEDIAPIPE_CONFIG
+    
+    # Video Config
+    VIDEO_CONFIG = VIDEO_CONFIG
+    
+    # Visualization
+    VISUALIZATION_CONFIG = VISUALIZATION_CONFIG
+    
+    # Keypoints
+    YOLO_KEYPOINTS = YOLO_KEYPOINTS
+    SKELETON_CONNECTIONS = SKELETON_CONNECTIONS
+    MEDIAPIPE_KEYPOINTS = MEDIAPIPE_KEYPOINTS
+    
+    # Export, Tracking, Filtering
+    EXPORT_CONFIG = EXPORT_CONFIG
+    TRACKING_CONFIG = TRACKING_CONFIG
+    FILTER_CONFIG = FILTER_CONFIG
+    
+    # Performance & Logging
+    PERFORMANCE_CONFIG = PERFORMANCE_CONFIG
+    LOGGING_CONFIG = LOGGING_CONFIG
+    
+    # Debug
+    DEBUG = DEBUG
+    
+    @classmethod
+    def get_model_path(cls, model_name: str):
+        """Get full path for model file"""
+        return cls.MODELS_DIR / model_name
+    
+    @classmethod
+    def update_model_size(cls, size: str):
+        """Update model size configuration"""
+        cls.SELECTED_MODEL = size
+        cls.DETECTION_CONFIG['model_name'] = f"yolov8{size}.pt"
+        cls.DETECTION_CONFIG['model_path'] = cls.MODELS_DIR / f"yolov8{size}.pt"
+        cls.POSE_CONFIG['model_name'] = f"yolov8{size}-pose.pt"
+        cls.POSE_CONFIG['model_path'] = cls.MODELS_DIR / f"yolov8{size}-pose.pt"

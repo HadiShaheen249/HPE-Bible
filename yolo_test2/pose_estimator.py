@@ -8,10 +8,11 @@ import numpy as np
 import logging
 from typing import List, Dict, Optional, Tuple
 import sys
+from yolo_test2.config import Config
 
 # Import configuration
 try:
-    from config import (
+    from yolo_test2.config import (
         POSE_CONFIG,
         YOLO_KEYPOINTS,
         SKELETON_CONNECTIONS,

@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚽ HPE Bible - Human Pose Estimation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+                        url('https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=1920') center/cover fixed;
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeInDown 1s;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+            background: linear-gradient(45deg, #00ff88, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #aaa;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: fadeInUp 1s;
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #00ff88;
+            font-size: 1.8em;
+        }
+
+        .model-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .model-btn {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            color: white;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .model-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 255, 136, 0.3);
+        }
+
+        .model-btn.active {
+            background: linear-gradient(135deg, #00ff88, #00d4ff);
+            border-color: #00ff88;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        .model-btn .icon {
+            font-size: 2em;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .model-config {
+            display: none;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(0, 255, 136, 0.1);
+            border-radius: 15px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .model-config.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        .model-config h3 {
+            margin-bottom: 15px;
+            color: #00ff88;
+            font-size: 1.2em;
+        }
+
+        .size-selector {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .size-selector {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .size-btn {
+            padding: 15px 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .size-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .size-btn.active {
+            background: linear-gradient(135deg, #00ff88, #00d4ff);
+            border-color: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+        }
+
+        .size-info {
+            font-size: 0.85em;
+            color: #aaa;
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .upload-zone {
+            border: 3px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 50px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .upload-zone:hover {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .upload-zone.dragover {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+            color: #00ff88;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00ff88, #00d4ff);
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            color: white;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 255, 136, 0.5);
+        }
+
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .preview-container {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .preview-container.show {
+            display: block;
+        }
+
+        .preview-img, .preview-video {
+            width: 100%;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+
+        .result-container {
+            display: none;
+        }
+
+        .result-container.show {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #00ff88;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+            margin-top: 15px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #aaa;
+            font-size: 0.9em;
+        }
+
+        .api-link {
+            color: #00ff88;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .api-link:hover {
+            text-decoration: underline;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.7em;
+            margin-left: 5px;
+        }
+
+        .badge.fast {
+            background: #00ff88;
+            color: black;
+        }
+
+        .badge.balanced {
+            background: #00d4ff;
+            color: black;
+        }
+
+        .badge.accurate {
+            background: #ffd700;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚽ HPE Bible</h1>
+            <p class="subtitle">Human Pose Estimation</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Left Panel: Upload -->
+            <div class="card">
+                <h2>🎯 اختر المشروع</h2>
+                <div class="model-selector">
+                    <button class="model-btn active" data-model="yolo-test1">
+                        <span class="icon">🧍</span>
+                        <div>YOLO Test 1</div>
+                        <small>Pose Estimation Only</small>
+                    </button>
+                    <button class="model-btn" data-model="yolo-test2">
+                        <span class="icon">🎯</span>
+                        <div>YOLO Test 2</div>
+                        <small>Detection + Pose</small>
+                    </button>
+                </div>
+
+                <!-- YOLO Test 1 Config -->
+                <div class="model-config show" id="config-test1">
+                    <h3>⚙️ اختر حجم الموديل (Pose):</h3>
+                    <div class="size-selector">
+                        <button class="size-btn" data-size="n">
+                            <div style="font-size: 1.2em;">N</div>
+                            <small>Nano</small>
+                        </button>
+                        <button class="size-btn" data-size="s">
+                            <div style="font-size: 1.2em;">S</div>
+                            <small>Small</small>
+                        </button>
+                        <button class="size-btn active" data-size="m">
+                            <div style="font-size: 1.2em;">M</div>
+                            <small>Medium</small>
+                        </button>
+                        <button class="size-btn" data-size="l">
+                            <div style="font-size: 1.2em;">L</div>
+                            <small>Large</small>
+                        </button>
+                        <button class="size-btn" data-size="x">
+                            <div style="font-size: 1.2em;">X</div>
+                            <small>XLarge</small>
+                        </button>
+                    </div>
+                    <div class="size-info" id="size-info-test1">
+                        <strong>Medium (M):</strong> ⚡⚡⚡ متوسط السرعة | ⭐⭐⭐⭐⭐ دقة ممتازة | 📦 52 MB
+                        <span class="badge balanced">موصى به</span>
+                    </div>
+                </div>
+
+                <!-- YOLO Test 2 Config -->
+                <div class="model-config" id="config-test2">
+                    <h3>⚙️ اختر الوضع:</h3>
+                    <div class="mode-selector">
+                        <button class="size-btn mode-btn active" data-mode="pose">
+                            🧍 Pose Estimation
+                        </button>
+                        <button class="size-btn mode-btn" data-mode="detection">
+                            🎯 Object Detection
+                        </button>
+                    </div>
+
+                    <div id="pose-model-selector">
+                        <h3 style="margin-top: 20px;">⚙️ موديل الـ Pose:</h3>
+                        <div class="size-selector">
+                            <button class="size-btn pose-size" data-size="n">
+                                <div>N</div>
+                                <small>Nano</small>
+                            </button>
+                            <button class="size-btn pose-size" data-size="s">
+                                <div>S</div>
+                                <small>Small</small>
+                            </button>
+                            <button class="size-btn pose-size active" data-size="m">
+                                <div>M</div>
+                                <small>Medium</small>
+                            </button>
+                            <button class="size-btn pose-size" data-size="l">
+                                <div>L</div>
+                                <small>Large</small>
+                            </button>
+                            <button class="size-btn pose-size" data-size="x">
+                                <div>X</div>
+                                <small>XLarge</small>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="detection-model-selector">
+                        <h3 style="margin-top: 20px;">⚙️ موديل الـ Detection:</h3>
+                        <div class="size-selector">
+                            <button class="size-btn det-size" data-size="n">
+                                <div>N</div>
+                                <small>Nano</small>
+                            </button>
+                            <button class="size-btn det-size" data-size="s">
+                                <div>S</div>
+                                <small>Small</small>
+                            </button>
+                            <button class="size-btn det-size active" data-size="m">
+                                <div>M</div>
+                                <small>Medium</small>
+                            </button>
+                            <button class="size-btn det-size" data-size="l">
+                                <div>L</div>
+                                <small>Large</small>
+                            </button>
+                            <button class="size-btn det-size" data-size="x">
+                                <div>X</div>
+                                <small>XLarge</small>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="size-info" id="size-info-test2">
+                        <strong>Pose Mode - Medium (M):</strong> ⚡⚡⚡ متوسط | ⭐⭐⭐⭐⭐ ممتاز | 📦 52 MB
+                    </div>
+                </div>
+
+                <h2 style="margin-top: 30px;">📤 ارفع الملف</h2>
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">📸</div>
+                    <p>اسحب الصورة أو الفيديو هنا أو اضغط للاختيار</p>
+                    <p style="font-size: 0.9em; color: #aaa; margin-top: 10px;">
+                        JPG, PNG, BMP, MP4, AVI, MOV (Max 100MB)
+                    </p>
+                </div>
+                <input type="file" id="fileInput" accept="image/*,video/*">
+
+                <div class="preview-container" id="previewContainer">
+                    <h3>📷 المعاينة:</h3>
+                    <img id="previewImg" class="preview-img" alt="Preview" style="display:none;">
+                    <video id="previewVideo" class="preview-video" controls style="display:none;"></video>
+                    <button class="btn" id="processBtn">
+                        🚀 ابدأ المعالجة
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results -->
+            <div class="card">
+                <h2>✨ النتيجة</h2>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>⏳ جاري المعالجة...</p>
+                    <p style="font-size: 0.9em; color: #aaa; margin-top: 10px;">
+                        الفيديوهات قد تستغرق وقتاً أطول
+                    </p>
+                </div>
+
+                <div class="result-container" id="resultContainer">
+                    <img id="resultImg" class="preview-img" alt="Result" style="display:none;">
+                    <video id="resultVideo" class="preview-video" controls style="display:none;"></video>
+                    
+                    <div class="stats" id="stats"></div>
+
+                    <button class="btn download-btn" id="downloadBtn">
+                        ⬇️ تحميل النتيجة
+                    </button>
+                </div>
+
+                <div id="placeholder" style="text-align: center; padding: 50px; color: #666;">
+                    <div style="font-size: 5em; margin-bottom: 20px;">🎨</div>
+                    <p>النتيجة ستظهر هنا</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>
+                <a href="/docs" class="api-link" target="_blank">📖 API Docs</a>
+                <a href="/health" class="api-link" target="_blank">🔍 Health Check</a>
+            </p>
+            <p style="margin-top: 10px;">
+                Made with ❤️ by Hadi Shaheen
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Configuration
+        let selectedModel = 'yolo-test1';
+        let selectedFile = null;
+        let resultUrl = null;
+        let selectedMode = 'pose';
+        let selectedSizeTest1 = 'm';
+        let selectedPoseSize = 'm';
+        let selectedDetSize = 'm';
+
+        // Model size information
+        const sizeInfo = {
+            'n': { speed: '⚡⚡⚡⚡⚡', accuracy: '⭐⭐⭐', size: '~6 MB', badge: 'fast', desc: 'سريع جداً' },
+            's': { speed: '⚡⚡⚡⚡', accuracy: '⭐⭐⭐⭐', size: '~22 MB', badge: 'fast', desc: 'سريع' },
+            'm': { speed: '⚡⚡⚡', accuracy: '⭐⭐⭐⭐⭐', size: '~52 MB', badge: 'balanced', desc: 'متوازن' },
+            'l': { speed: '⚡⚡', accuracy: '⭐⭐⭐⭐⭐', size: '~87 MB', badge: 'accurate', desc: 'دقيق' },
+            'x': { speed: '⚡', accuracy: '⭐⭐⭐⭐⭐⭐', size: '~136 MB', badge: 'accurate', desc: 'دقيق جداً' }
+        };
+
+        // Update size info display
+        function updateSizeInfo(size, target) {
+            const info = sizeInfo[size];
+            const badgeClass = info.badge;
+            const html = `
+                <strong>${info.desc} (${size.toUpperCase()}):</strong> 
+                ${info.speed} السرعة | ${info.accuracy} الدقة | 📦 ${info.size}
+                <span class="badge ${badgeClass}">${size === 'm' ? 'موصى به' : info.desc}</span>
+            `;
+            document.getElementById(target).innerHTML = html;
+        }
+
+        // Model Selection
+        document.querySelectorAll('.model-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (!this.dataset.model) return;
+                
+                document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedModel = this.dataset.model;
+
+                // Show/hide configs
+                document.getElementById('config-test1').classList.remove('show');
+                document.getElementById('config-test2').classList.remove('show');
+                
+                if (selectedModel === 'yolo-test1') {
+                    document.getElementById('config-test1').classList.add('show');
+                } else {
+                    document.getElementById('config-test2').classList.add('show');
+                }
+            });
+        });
+
+        // YOLO Test1 Size Selection
+        document.querySelectorAll('#config-test1 .size-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('#config-test1 .size-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedSizeTest1 = this.dataset.size;
+                updateSizeInfo(selectedSizeTest1, 'size-info-test1');
+            });
+        });
+
+        // YOLO Test2 Mode Selection
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedMode = this.dataset.mode;
+                updateTest2Info();
+            });
+        });
+
+        // YOLO Test2 Pose Size Selection
+        document.querySelectorAll('.pose-size').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.pose-size').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedPoseSize = this.dataset.size;
+                updateTest2Info();
+            });
+        });
+
+        // YOLO Test2 Detection Size Selection
+        document.querySelectorAll('.det-size').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.det-size').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedDetSize = this.dataset.size;
+                updateTest2Info();
+            });
+        });
+
+        function updateTest2Info() {
+            let html = '';
+            if (selectedMode === 'pose') {
+                const info = sizeInfo[selectedPoseSize];
+                html = `<strong>Pose Mode - ${info.desc} (${selectedPoseSize.toUpperCase()}):</strong> ${info.speed} | ${info.accuracy} | 📦 ${info.size}`;
+            } else {
+                const info = sizeInfo[selectedDetSize];
+                html = `<strong>Detection Mode - ${info.desc} (${selectedDetSize.toUpperCase()}):</strong> ${info.speed} | ${info.accuracy} | 📦 ${info.size}`;
+            }
+            document.getElementById('size-info-test2').innerHTML = html;
+        }
+
+        // Upload Zone
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImg = document.getElementById('previewImg');
+        const previewVideo = document.getElementById('previewVideo');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            handleFile(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            handleFile(file);
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+            
+            const isImage = file.type.startsWith('image/');
+            const isVideo = file.type.startsWith('video/');
+            
+            if (!isImage && !isVideo) {
+                alert('⚠️ من فضلك اختر صورة أو فيديو صحيح!');
+                return;
+            }
+
+            selectedFile = file;
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                if (isImage) {
+                    previewImg.src = e.target.result;
+                    previewImg.style.display = 'block';
+                    previewVideo.style.display = 'none';
+                } else {
+                    previewVideo.src = e.target.result;
+                    previewVideo.style.display = 'block';
+                    previewImg.style.display = 'none';
+                }
+                previewContainer.classList.add('show');
+                document.getElementById('resultContainer').classList.remove('show');
+                document.getElementById('placeholder').style.display = 'block';
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        // Process Button
+        document.getElementById('processBtn').addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const loading = document.getElementById('loading');
+            const resultContainer = document.getElementById('resultContainer');
+            const placeholder = document.getElementById('placeholder');
+            const resultImg = document.getElementById('resultImg');
+            const resultVideo = document.getElementById('resultVideo');
+
+            loading.classList.add('show');
+            resultContainer.classList.remove('show');
+            placeholder.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                let endpoint = '';
+                let modelSize = '';
+
+                if (selectedModel === 'yolo-test1') {
+                    endpoint = '/api/yolo-test1/predict';
+                    modelSize = selectedSizeTest1;
+                    formData.append('model_size', modelSize);
+                } else {
+                    endpoint = '/api/yolo-test2/detect';
+                    formData.append('mode', selectedMode);
+                    
+                    if (selectedMode === 'pose') {
+                        modelSize = selectedPoseSize;
+                        formData.append('pose_size', selectedPoseSize);
+                        formData.append('det_size', 'm'); // Default for detection in pose mode
+                    } else {
+                        modelSize = selectedDetSize;
+                        formData.append('det_size', selectedDetSize);
+                        formData.append('pose_size', 'm'); // Default for pose in detection mode
+                    }
+                }
+
+                console.log('Sending request to:', endpoint);
+                console.log('Model size:', modelSize);
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                console.log('Response:', data);
+
+                if (data.success) {
+                    resultUrl = data.download_url;
+                    
+                    // Check if result is video or image
+                    const isVideoResult = data.type === 'video';
+                    
+                    if (isVideoResult) {
+                        resultVideo.src = resultUrl;
+                        resultVideo.style.display = 'block';
+                        resultImg.style.display = 'none';
+                    } else {
+                        resultImg.src = resultUrl;
+                        resultImg.style.display = 'block';
+                        resultVideo.style.display = 'none';
+                    }
+                    
+                    // Display stats
+                    const statsDiv = document.getElementById('stats');
+                    statsDiv.innerHTML = '';
+                    
+                    if (data.type === 'video') {
+                        statsDiv.innerHTML += `
+                            <div class="stat-card">
+                                <div class="number">${data.frames_processed || 0}</div>
+                                <div class="label">🎬 عدد الإطارات</div>
+                            </div>
+                        `;
+                    }
+
+                    if (data.data && data.data.num_persons !== undefined) {
+                        statsDiv.innerHTML += `
+                            <div class="stat-card">
+                                <div class="number">${data.data.num_persons}</div>
+                                <div class="label">👤 عدد الأشخاص</div>
+                            </div>
+                        `;
+                    }
+
+                    if (data.num_persons !== undefined) {
+                        statsDiv.innerHTML += `
+                            <div class="stat-card">
+                                <div class="number">${data.num_persons}</div>
+                                <div class="label">👤 عدد الأشخاص</div>
+                            </div>
+                        `;
+                    }
+
+                    if (data.poses_estimated !== undefined) {
+                        statsDiv.innerHTML += `
+                            <div class="stat-card">
+                                <div class="number">${data.poses_estimated}</div>
+                                <div class="label">🧍 تقدير الوضعيات</div>
+                            </div>
+                        `;
+                    }
+                    
+                    if (data.num_detections !== undefined) {
+                        statsDiv.innerHTML += `
+                            <div class="stat-card">
+                                <div class="number">${data.num_detections}</div>
+                                <div class="label">🎯 عدد الكائنات</div>
+                            </div>
+                        `;
+                    }
+
+                    if (data.detections && data.detections.length > 0) {
+                        statsDiv.innerHTML += `
+                            <div class="stat-card">
+                                <div class="number">${data.detections.length}</div>
+                                <div class="label">🎯 كائنات مكتشفة</div>
+                            </div>
+                        `;
+                    }
+
+                    statsDiv.innerHTML += `
+                        <div class="stat-card">
+                            <div class="number">✅</div>
+                            <div class="label">نجحت المعالجة</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="number">${modelSize.toUpperCase()}</div>
+                            <div class="label">حجم الموديل</div>
+                        </div>
+                    `;
+
+                    if (selectedModel === 'yolo-test1' && data.data && data.data.tile_grid) {
+                        statsDiv.innerHTML += `
+                            <div class="stat-card">
+                                <div class="number">${data.data.tile_grid[0]}×${data.data.tile_grid[1]}</div>
+                                <div class="label">🧩 Tiling Grid</div>
+                            </div>
+                        `;
+                    }
+
+                    resultContainer.classList.add('show');
+                } else {
+                    alert('❌ حدث خطأ: ' + (data.detail || 'Unknown error'));
+                    placeholder.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('❌ خطأ في الاتصال: ' + error.message);
+                placeholder.style.display = 'block';
+            } finally {
+                loading.classList.remove('show');
+            }
+        });
+
+        // Download Button
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            if (resultUrl) {
+                window.open(resultUrl, '_blank');
+            }
+        });
+
+        // Initialize
+        updateSizeInfo('m', 'size-info-test1');
+        updateTest2Info();
+    </script>
+</body>
+</html>
