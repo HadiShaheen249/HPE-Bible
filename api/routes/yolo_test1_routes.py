@@ -127,42 +127,12 @@ async def predict_yolo1(
             output_path = output_dir / "images" / output_filename
             output_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # Use original predict_image method
-            result_frame = estimator.predict_image(
+            # ✅ Use modified predict_image that returns counts
+            result_frame, num_persons, total_keypoints = estimator.predict_image(
                 image_path=str(input_path),
                 save_result=True,
                 output_path=str(output_path)
             )
-            
-            # ✅ Count persons with detected poses - FIX
-            img = cv2.imread(str(input_path))
-            results = estimator.model(img, verbose=False)
-            
-            num_persons = 0
-            total_keypoints = 0
-            
-            if results and len(results) > 0:
-                result = results[0]
-                
-                # Check if keypoints exist
-                if hasattr(result, 'keypoints') and result.keypoints is not None:
-                    # Get keypoints data
-                    keypoints_data = result.keypoints.data
-                    
-                    if keypoints_data is not None and len(keypoints_data.shape) > 0:
-                        # Number of persons detected
-                        num_persons = keypoints_data.shape[0] if len(keypoints_data.shape) > 1 else 0
-                        
-                        print(f"   🔍 Keypoints shape: {keypoints_data.shape}")
-                        
-                        # Count visible keypoints (confidence > 0.5)
-                        if num_persons > 0:
-                            for person_idx in range(num_persons):
-                                person_kpts = keypoints_data[person_idx]
-                                if len(person_kpts.shape) > 1:
-                                    # confidence is in column 2
-                                    visible = (person_kpts[:, 2] > 0.5).sum().item()
-                                    total_keypoints += visible
             
             print(f"   ✅ Detected {num_persons} persons with {total_keypoints} total visible keypoints")
             
@@ -171,7 +141,7 @@ async def predict_yolo1(
                 "message": "Pose estimation completed",
                 "type": "image",
                 "model_size": model_size,
-                "num_persons": num_persons,  # ✅ العدد الصحيح
+                "num_persons": num_persons,  # ✅ العدد الصحيح من الـ tiles
                 "total_visible_keypoints": total_keypoints,
                 "tile_grid": list(Config.TILE_GRID),
                 "download_url": f"/api/yolo-test1/result/images/{output_filename}"

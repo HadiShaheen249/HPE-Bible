@@ -100,6 +100,47 @@ class YOLOv8PoseEstimator:
                 cv2.circle(frame, (x, y), 5, (255, 255, 255), 2)
         return frame
 
+    def _draw_pose_on_image(self, image: np.ndarray, keypoints) -> np.ndarray:
+        """
+        Draw keypoints and skeleton on image
+        Args:
+            image: Image array
+            keypoints: Tensor or numpy array of shape (17, 3) - [x, y, confidence]
+        """
+        # Convert to numpy if tensor
+        if hasattr(keypoints, 'cpu'):
+            kpts = keypoints.cpu().numpy()
+        else:
+            kpts = np.array(keypoints)
+        
+        # Skeleton connections (COCO format)
+        skeleton = [
+            [16, 14], [14, 12], [17, 15], [15, 13], [12, 13],
+            [6, 12], [7, 13], [6, 7], [6, 8], [7, 9],
+            [8, 10], [9, 11], [2, 3], [1, 2], [1, 3],
+            [2, 4], [3, 5], [4, 6], [5, 7]
+        ]
+        
+        # Draw skeleton connections
+        for connection in skeleton:
+            idx1 = connection[0] - 1
+            idx2 = connection[1] - 1
+            
+            if idx1 < len(kpts) and idx2 < len(kpts):
+                if kpts[idx1, 2] > 0.5 and kpts[idx2, 2] > 0.5:
+                    pt1 = (int(kpts[idx1, 0]), int(kpts[idx1, 1]))
+                    pt2 = (int(kpts[idx2, 0]), int(kpts[idx2, 1]))
+                    cv2.line(image, pt1, pt2, (0, 255, 0), 2)
+        
+        # Draw keypoints
+        for i in range(len(kpts)):
+            if kpts[i, 2] > 0.5:
+                center = (int(kpts[i, 0]), int(kpts[i, 1]))
+                cv2.circle(image, center, 4, (0, 0, 255), -1)
+                cv2.circle(image, center, 5, (255, 255, 255), 1)
+        
+        return image
+
     def _split_image_to_tiles(self, image, grid_size=(3, 3)):
         """
         تقسيم الصورة إلى مربعات صغيرة (tiles)
@@ -122,12 +163,11 @@ class YOLOv8PoseEstimator:
                 tiles.append((crop, (x1, y1)))
         return tiles
 
-    # 🧩 Function to split frame into tiles (used for far-view frames)
     def _process_tiled_frame(self, frame: np.ndarray, grid_size=None) -> np.ndarray:
         """
         Process image or frame using tiling approach
+        Returns only the processed frame (for video processing)
         """
-        # لو المستخدم غيّر حجم الـ grid من Config
         if grid_size is None:
             grid_size = Config.TILE_GRID
 
@@ -149,18 +189,69 @@ class YOLOv8PoseEstimator:
 
     def predict_image(self, image_path: Union[str, Path],
                       save_result: bool = True,
-                      output_path: Optional[str] = None) -> np.ndarray:
+                      output_path: Optional[str] = None) -> Tuple[np.ndarray, int, int]:
         """
-        Analyze a single image — now with tiling support for distant scenes
+        Analyze a single image with tiling support for distant scenes
+        
+        Returns:
+            Tuple of (result_frame, num_persons, total_visible_keypoints)
         """
         print(f"📸 Processing image: {image_path}")
         frame = cv2.imread(str(image_path))
         if frame is None:
             raise ValueError(f"Cannot read image: {image_path}")
 
-        # 👇 استخدم حجم grid من Config
-        output_frame = self._process_tiled_frame(frame, grid_size=Config.TILE_GRID)
+        # Get grid size from config
+        grid_size = Config.TILE_GRID
+        h, w = frame.shape[:2]
+        rows, cols = grid_size
+        tile_h = h // rows
+        tile_w = w // cols
+        
+        result_img = frame.copy()
+        total_persons = 0
+        total_visible_keypoints = 0
+        
+        # Process each tile
+        for i in range(rows):
+            for j in range(cols):
+                y1 = i * tile_h
+                y2 = (i + 1) * tile_h if i < rows - 1 else h
+                x1 = j * tile_w
+                x2 = (j + 1) * tile_w if j < cols - 1 else w
+                
+                tile = frame[y1:y2, x1:x2]
+                
+                # Run pose estimation on tile
+                results = self.model(tile, conf=self.conf_threshold, verbose=False)
+                
+                if results and len(results) > 0:
+                    result = results[0]
+                    
+                    if hasattr(result, 'keypoints') and result.keypoints is not None:
+                        keypoints_data = result.keypoints.data
+                        
+                        if keypoints_data is not None and len(keypoints_data.shape) > 1:
+                            num_persons_in_tile = keypoints_data.shape[0]
+                            total_persons += num_persons_in_tile
+                            
+                            # Draw poses on result image
+                            for person_idx in range(num_persons_in_tile):
+                                person_kpts = keypoints_data[person_idx]
+                                
+                                # Adjust keypoints to original image coordinates
+                                adjusted_kpts = person_kpts.clone()
+                                adjusted_kpts[:, 0] += x1  # x offset
+                                adjusted_kpts[:, 1] += y1  # y offset
+                                
+                                # Count visible keypoints
+                                visible = (adjusted_kpts[:, 2] > 0.5).sum().item()
+                                total_visible_keypoints += visible
+                                
+                                # Draw keypoints and skeleton
+                                result_img = self._draw_pose_on_image(result_img, adjusted_kpts)
 
+        # Save result
         if save_result:
             if output_path is None:
                 input_filename = Path(image_path).name
@@ -168,10 +259,12 @@ class YOLOv8PoseEstimator:
             else:
                 output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(str(output_path), output_frame)
+            cv2.imwrite(str(output_path), result_img)
             print(f"💾 Result saved to: {output_path}")
 
-        return output_frame
+        print(f"   ✅ Total: {total_persons} persons, {total_visible_keypoints} visible keypoints")
+        
+        return result_img, total_persons, total_visible_keypoints
 
     def predict_video(self, video_path: Union[str, Path, int],
                       save_result: bool = True,
@@ -224,7 +317,7 @@ class YOLOv8PoseEstimator:
                     break
 
                 frame_count += 1
-                # 👇 استخدام grid الديناميكي من Config
+                # استخدام grid الديناميكي من Config
                 processed_frame = self._process_tiled_frame(frame, grid_size=Config.TILE_GRID)
 
                 elapsed_time = time.time() - start_time
@@ -251,6 +344,7 @@ class YOLOv8PoseEstimator:
             elapsed = time.time() - start_time
             print(f"✅ Processed {frame_count} frames in {elapsed:.2f} seconds")
             print(f"📊 Average FPS: {frame_count / elapsed:.2f}")
+
 
 def cleanup_default_models():
     """Optional: Clean up models from default ultralytics folder"""
