@@ -1,6 +1,8 @@
 """
 Application Interface for RTMPose + ByteTrack Pose Estimator
 """
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 from pose_estimator import RTMPoseEstimator
 from config import Config

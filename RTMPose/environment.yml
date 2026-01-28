@@ -1,4 +1,5 @@
 name: rtmpose_tracker
+
 channels:
   - pytorch
   - nvidia
@@ -6,27 +7,38 @@ channels:
   - defaults
 
 dependencies:
-  - python=3.9
-  - pytorch::pytorch=2.0.1
-  - pytorch::torchvision=0.15.2
-  - pytorch::torchaudio=2.0.2
-  - pytorch::pytorch-cuda=11.8
-  - numpy=1.24.3
-  - scipy=1.10.1
-  - pandas=2.0.3
-  - opencv=4.8.0
-  - pillow=10.0.0
-  - tqdm=4.65.0
-  - matplotlib=3.7.2
-  - pip=23.2.1
+  - python=3.10
   
+  # PyTorch 2.0 (Stable with CUDA 11.8 for GTX 1660 Ti)
+  - pytorch=2.0.1
+  - torchvision=0.15.2
+  - torchaudio=2.0.2
+  - pytorch-cuda=11.8
+
+  # Core Libraries
+  - numpy=1.24.3       # Pinned to avoid version 2.0 conflicts
+  - scipy
+  - pandas
+  - opencv
+  - pillow
+  - tqdm
+  - matplotlib
+
+  # IMPORTANT FIXES
+  # We removed 'lap' and added 'lapx' in pip section (Works on Windows)
+
+  - pip
   - pip:
-      - openmim==0.3.9
-      - mmengine==0.8.4
-      - mmcv==2.0.1
-      - mmdet==3.1.0
-      - mmpose==1.1.0
-      - lap==0.4.0
-      - shapely==2.0.1
-      - terminaltables==3.1.10
-      - colorama==0.4.6
+      - lapx>=0.5.5           # Fixes 'lap' build error on Windows
+      - chumpy
+      - onnxruntime-gpu       # Essential for inference speed
+      - openmim
+      - mmengine
+      - "mmcv>=2.0.1"
+      - "mmdet>=3.1.0"
+      - "mmpose>=1.1.0"
+      - shapely
+      - colorama
+      - terminaltables
+      - json_tricks
+      - xtcocotools
